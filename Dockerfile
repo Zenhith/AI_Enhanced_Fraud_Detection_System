@@ -1,33 +1,26 @@
 FROM python:3.13-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    build-essential \
-    libpython3-dev \
-    libffi-dev \
-    libssl-dev \
+# Minimize layer size
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc build-essential libpython3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy requirements and install dependencies first
-COPY requirements.txt /app/
+# Install dependencies first
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
-COPY . /app
+# Copy only necessary files
+COPY main.py fds.py ./
 
-# Create necessary directories
-RUN mkdir -p /app/models /app/data
+# Set memory and performance environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV GUNICORN_CMD_ARGS="--workers 2 --threads 2 --max-requests 1000 --timeout 120"
 
-# Set environment variables
-ENV PORT=8000
-ENV MODEL_PATH=/app/models
-ENV DATABASE_PATH=/app/data/ai_fraud_reports.db
+# Install production WSGI server
+RUN pip install gunicorn
 
-# Expose port
-EXPOSE 8000
-
-# Use a production-ready command
-CMD ["python", "main.py"]
+# Use gunicorn for production
+CMD ["gunicorn", "-b", "0.0.0.0:$PORT", "main:app"]
