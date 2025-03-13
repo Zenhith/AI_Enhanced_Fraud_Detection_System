@@ -1,1 +1,1 @@
-web: gunicorn app:server
+web: python debug_pip.py && gunicorn app:server
