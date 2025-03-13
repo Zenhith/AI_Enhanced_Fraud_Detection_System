@@ -1,39 +1,33 @@
 FROM python:3.13-slim
 
-
-# Install system libraries needed for building packages (like Prophet, psycopg2)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     build-essential \
     libpython3-dev \
-    libpq-dev \
     libffi-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the requirements file
+# Copy requirements and install dependencies first
 COPY requirements.txt /app/
-
-# Upgrade pip and installer tools
-RUN pip install --upgrade pip setuptools wheel
-
-
-# Install all the Python dependencies listed in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your source code into the container
+# Copy the rest of the application
 COPY . /app
 
-# Set an environment variable for the port (Railway may override this)
-ENV PORT=8000
+# Create necessary directories
+RUN mkdir -p /app/models /app/data
 
-# Expose the port
+# Set environment variables
+ENV PORT=8000
+ENV MODEL_PATH=/app/models
+ENV DATABASE_PATH=/app/data/ai_fraud_reports.db
+
+# Expose port
 EXPOSE 8000
 
-# Create a directory for persistent data (if using SQLite, mount a volume to this path)
-RUN mkdir -p /app/data
-
-# Run the application
-CMD [ "python", "main.py" ]
+# Use a production-ready command
+CMD ["python", "main.py"]
