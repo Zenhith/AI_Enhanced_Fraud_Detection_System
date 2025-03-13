@@ -74,7 +74,8 @@ def main():
         # Start dashboard in main thread
         print("Starting dashboard at http://localhost:8050")
         print("Press Ctrl+C to stop the server")
-        dashboard.run(debug=False,port=int(os.environ.get('PORT', 8050)))
+        dashboard.run(debug=False, host='0.0.0.0',  port=PORT)
+
         
     except Exception as e:
         logger.error(f"Critical error in AI Fraud Detection System: {e}")
