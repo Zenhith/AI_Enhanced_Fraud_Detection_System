@@ -1,26 +1,26 @@
 FROM python:3.13-slim
 
-# Minimize layer size
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc build-essential libpython3-dev \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    build-essential \
+    libpython3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install dependencies first
+# Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy only necessary files
-COPY main.py fds.py ./
+# Copy application files
+COPY . .
 
-# Set memory and performance environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV GUNICORN_CMD_ARGS="--workers 2 --threads 2 --max-requests 1000 --timeout 120"
+# Use a default port if not set
+ENV PORT=8000
 
-# Install production WSGI server
-RUN pip install gunicorn
+# Expose the port
+EXPOSE 8000
 
-# Use gunicorn for production
-CMD ["gunicorn", "-b", "0.0.0.0:$PORT", "main:app"]
+# Use CMD with explicit port handling
+CMD gunicorn --bind 0.0.0.0:${PORT:-8000} main:app
