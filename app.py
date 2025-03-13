@@ -1,53 +1,57 @@
 import os
 import logging
-import sys
-from datetime import datetime
+import dash
+import dash_bootstrap_components as dbc
+from dash import html, dcc
+import plotly.express as px
 
-# Minimal logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s: %(message)s'
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Lazy imports to reduce initial load
-def create_app():
-    try:
-        # Selective imports
-        from fds import (
-            RealTimeDataIngestionManager, 
-            seed_sample_data, 
-            EnhancedAIFraudDashboard
-        )
-        
-        # Create data ingestion manager
-        logger.info("Initializing data manager...")
-        data_manager = RealTimeDataIngestionManager(
-            database_path='ai_fraud_reports.db'
-        )
-        
-        # Minimal initialization
-        data_manager.initialize_database()
-        seed_sample_data(data_manager)
-        
-        # Create dashboard
-        logger.info("Setting up dashboard...")
-        dashboard = EnhancedAIFraudDashboard(data_manager)
-        
-        return dashboard.app.server
-    
-    except Exception as e:
-        logger.error(f"Initialization error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
+# Initialize the Dash app
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
+server = app.server  # Expose Flask server for deployment
 
-# Create the Flask app
-app = create_app()
+# Create a simple layout
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col([
+            html.H1("AI Fraud Intelligence Dashboard", className="text-center my-4"),
+            html.P("Initial deployment - minimal version", className="text-center text-secondary"),
+            
+            dbc.Card([
+                dbc.CardHeader("Deployment Status"),
+                dbc.CardBody([
+                    html.H4("Successfully Deployed!", className="text-success"),
+                    html.P("This is a minimal version to verify deployment works correctly."),
+                    html.P(f"Running on port: {os.environ.get('PORT', '8050')}")
+                ])
+            ], className="mb-4"),
+            
+            # Simple demo chart
+            dbc.Card([
+                dbc.CardHeader("Sample Visualization"),
+                dbc.CardBody([
+                    dcc.Graph(
+                        figure=px.bar(
+                            x=["Deepfake", "Voice Cloning", "AI Phishing", "Identity Theft", "Financial Fraud"],
+                            y=[35, 25, 40, 20, 30],
+                            title="Sample AI Fraud Categories",
+                            labels={"x": "Category", "y": "Incidents"}
+                        )
+                    )
+                ])
+            ])
+        ], width=12)
+    ])
+], fluid=True)
 
-# Port configuration for Railway
-port = int(os.environ.get("PORT", 8050))
-
-# This is the entry point for Railway
+# Entry point for the application
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=port)
+    # Get port from environment (set by Railway)
+    port = int(os.environ.get("PORT", 8050))
+    logger.info(f"Starting server on port {port}")
+    
+    # Run server
+    app.run_server(debug=False, host='0.0.0.0', port=port)
