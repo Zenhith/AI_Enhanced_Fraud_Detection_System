@@ -73,7 +73,6 @@ pillow==11.1.0
 plotly==6.0.0
 praw==7.8.1
 prawcore==2.4.0
-prophet==1.1.6
 Protego==0.4.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
