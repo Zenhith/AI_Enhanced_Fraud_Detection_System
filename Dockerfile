@@ -11,7 +11,9 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install dependencies including gunicorn
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy application files
 COPY . .
@@ -22,5 +24,9 @@ ENV PORT=8000
 # Expose the port
 EXPOSE 8000
 
-# Use CMD with explicit port handling
-CMD gunicorn --bind 0.0.0.0:${PORT:-8000} main:app
+# Alternative CMD if gunicorn fails
+CMD if command -v gunicorn >/dev/null 2>&1; then \
+        gunicorn --bind 0.0.0.0:${PORT:-8000} main:app; \
+    else \
+        python main.py; \
+    fi
