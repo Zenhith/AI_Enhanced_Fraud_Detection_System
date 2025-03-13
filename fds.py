@@ -690,20 +690,29 @@ class AdvancedFraudClassifier:
 		Returns:
 			Loaded model
 		"""
+
 		try:
-			# Try to load pretrained model
-			model_path = os.path.join(self.model_path, "fraud_transformer")
-			if os.path.exists(model_path):
-				model = AutoModelForSequenceClassification.from_pretrained(model_path)
-				tokenizer = AutoTokenizer.from_pretrained(model_path)
-				return {"model": model, "tokenizer": tokenizer}
-			else:
-				# Use sentence transformer as fallback
-				return None
-		except Exception as e:
-			self.logger.error(f"Error loading transformer model: {e}")
-			return None
-	
+	        # Fallback to default Hugging Face model if local path doesn't exist
+	        model_path = os.path.join(self.model_path, "fraud_transformer")
+	        
+	        if os.path.exists(model_path):
+	            model = AutoModelForSequenceClassification.from_pretrained(model_path)
+	            tokenizer = AutoTokenizer.from_pretrained(model_path)
+	        else:
+	            # Use a default pre-trained model as fallback
+	            model = AutoModelForSequenceClassification.from_pretrained(
+	                "distilbert-base-uncased-finetuned-sst-2-english"
+	            )
+	            tokenizer = AutoTokenizer.from_pretrained(
+	                "distilbert-base-uncased-finetuned-sst-2-english"
+	            )
+        
+        		return {"model": model, "tokenizer": tokenizer}
+    
+	    	except Exception as e:
+	        	print(f"Model loading error: {e}")
+	        	return None
+		
 	def _train_initial_classifier(self):
 		"""
 		Train an initial machine learning classifier
