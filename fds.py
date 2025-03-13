@@ -573,6 +573,11 @@ class AdvancedFraudClassifier:
 		# Ensure model directory exists
 		os.makedirs(self.model_path, exist_ok=True)
 		
+  		# SINGLETON PATTERN: Load models only ONCE
+		
+		self._transformer_model = None
+		self._zero_shot_model = None
+  
 		# Predefined fraud categories with expanded descriptions
 		self.fraud_categories = {
 			'Deepfake Fraud': [
@@ -690,6 +695,8 @@ class AdvancedFraudClassifier:
 		Returns:
 			Loaded model
 		"""
+		if self._transformer_model is not None:
+			return self._transformer_model
 
 		try:
 			# Fallback to default Hugging Face model if local path doesn't exist
@@ -1712,6 +1719,7 @@ class HistoricalDataCollector:
 		self.start_date = datetime(2024, 1, 1)
 		
 		# Add specialized request handling for historical data
+		sources_to_process = self.historical_sources[:10]  
 		total_reports = 0
 		
 		for source in self.historical_sources:
