@@ -43,7 +43,9 @@ setup_multi_page_dashboard(dashboard, data_manager)
 data_manager.dashboard = dashboard
 
 # Export the Dash app for gunicorn to serve
+# For Dash apps, the correct WSGI app is the 'server' attribute
 app = dashboard.app
+server = app.server  # This is what gunicorn should use
 
 def main():
     """
