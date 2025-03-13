@@ -18,14 +18,22 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application files
 COPY . .
 
-# Make run script executable
-RUN chmod +x run.sh
-
 # Use a default port if not set
 ENV PORT=8080
 
 # Expose the port
 EXPOSE ${PORT}
 
-# Run using the run script which has a fallback mechanism
-CMD ["./run.sh"]
+# Create startup script
+RUN echo '#!/bin/bash\n\
+if [ "$GUNICORN_ENABLED" = "false" ]; then\n\
+    echo "Running with Python directly..."\n\
+    python main.py\n\
+else\n\
+    echo "Running with Gunicorn..."\n\
+    # Extended timeout to allow for initialization\n\
+    gunicorn --bind 0.0.0.0:${PORT} --workers=1 --threads=2 --timeout=300 wsgi:application\n\
+fi' > /app/start.sh && chmod +x /app/start.sh
+
+# Run with the startup script
+CMD ["/app/start.sh"]
