@@ -1,35 +1,33 @@
-# 1) Start from a Python base image
 FROM python:3.9
 
-# 2) Install system dependencies needed for Prophet and other packages
+# Install system dependencies required for building Python packages (e.g. Prophet, psycopg2)
 RUN apt-get update && apt-get install -y \
     gcc \
     build-essential \
     libpython3-dev \
+    libpq-dev \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 3) Create a working directory in the container
 WORKDIR /app
 
-# 4) Copy in your requirements file
+# Copy the requirements file
 COPY requirements.txt /app/
 
-# 5) Install Python dependencies
+# Upgrade pip, setuptools, and wheel
+RUN pip install --upgrade pip setuptools wheel
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6) Copy the rest of your source code
+# Copy the rest of the application code
 COPY . /app
 
-# 7) Set an environment variable for the port (Railway may override it)
+# Set environment variables and create folder for persistent data (if using SQLite)
 ENV PORT=8000
-
-# 8) Expose the port (mostly for local reference – not strictly needed on Railway)
 EXPOSE 8000
-
-# 9) By default, store the SQLite DB in /app/data so you can mount a volume there for persistence
-#    Make sure your code uses a similar path for the DB:
-#    engine = create_engine("sqlite:////app/data/ai_fraud_reports.db")
 RUN mkdir -p /app/data
 
-# 10) Run your main Python entrypoint
+# Run the application
 CMD [ "python", "main.py" ]
