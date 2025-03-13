@@ -5,77 +5,74 @@ import threading
 import sys
 from datetime import datetime
 
-# Import from your main source code file (which I assume is named something like fds.py)
+# Import from your main source code file
 from fds import (
     RealTimeDataIngestionManager, 
-    seed_sample_data, 
     HistoricalDataCollector, 
     EnhancedAIFraudDashboard, 
     setup_multi_page_dashboard 
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s: %(message)s',
+    handlers=[
+        logging.FileHandler('ai_fraud_detection.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Create data ingestion manager
+data_manager = RealTimeDataIngestionManager(
+    database_path='ai_fraud_reports.db'
+)
+
+# Initialize database with default data
+data_manager.initialize_database()
+
+# Skip seeding sample data - we only want real-time collection
+# seed_sample_data(data_manager)  # Commented out
+
+# Create dashboard
+dashboard = EnhancedAIFraudDashboard(data_manager)
+setup_multi_page_dashboard(dashboard, data_manager)
+
+# Connect dashboard to data manager
+data_manager.dashboard = dashboard
+
+# Export the Dash app for gunicorn to serve
+app = dashboard.app
+
 def main():
     """
     Main function to run the AI Fraud Detection System
     """
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s: %(message)s',
-        handlers=[
-            logging.FileHandler('ai_fraud_detection.log'),
-            logging.StreamHandler()
-        ]
-    )
-    logger = logging.getLogger(__name__)
-
     try:
         print("Starting AI Fraud Detection System...")
         
-        # Create data ingestion manager
-        print("Initializing data manager...")
-        data_manager = RealTimeDataIngestionManager(
-            database_path='ai_fraud_reports.db'
-        )
+        # Start real-time data collection immediately
+        print("Starting immediate data collection...")
+        # Collect data once before starting the thread
+        data_manager.collect_data()
         
-        # Initialize database with default data
-        print("Initializing database...")
-        data_manager.initialize_database()
-        
-        # Pre-seed database with sample data if needed
-        print("Seeding sample data...")
-        seed_sample_data(data_manager)
-        
-        # Collect historical data
-        print("Collecting historical data from January 2025...")
-        historical_collector = HistoricalDataCollector(data_manager)
-        historical_reports = historical_collector.collect_historical_data()
-        print(f"Collected {historical_reports} historical reports")
-        
-        # Create dashboard
-        print("Setting up dashboard...")
-        dashboard = EnhancedAIFraudDashboard(data_manager)
-        
-        print("Setting up novelty detection...")
-        setup_multi_page_dashboard(dashboard, data_manager)
-        
-        # Connect dashboard to data manager
-        data_manager.dashboard = dashboard
-        
-        # Start data collection in a separate thread
-        print("Starting data collection thread...")
+        # Start periodic collection in a separate thread
+        print("Starting periodic data collection thread...")
         collection_thread = threading.Thread(
             target=data_manager.start_periodic_collection,
-            kwargs={'collection_interval_minutes': 15,},
+            kwargs={'collection_interval_minutes': 15},
             daemon=True
         )
         collection_thread.start()
         
+        # Get port from environment or use default
+        port = int(os.environ.get('PORT', 8050))
+        
         # Start dashboard in main thread
-        print("Starting dashboard at http://localhost:8050")
+        print(f"Starting dashboard at http://localhost:{port}")
         print("Press Ctrl+C to stop the server")
-        dashboard.run(debug=False, host='0.0.0.0',  port=PORT)
-
+        dashboard.run(debug=False, host='0.0.0.0', port=port)
         
     except Exception as e:
         logger.error(f"Critical error in AI Fraud Detection System: {e}")
@@ -101,14 +98,6 @@ if __name__ == "__main__":
         logger = logging.getLogger(__name__)
         
         try:
-            # Initialize data manager
-            data_manager = RealTimeDataIngestionManager(
-                database_path='ai_fraud_reports.db'
-            )
-            
-            # Initialize database
-            data_manager.initialize_database()
-            
             # Run historical collection
             historical_collector = HistoricalDataCollector(data_manager)
             collected = historical_collector.collect_historical_data()
