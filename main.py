@@ -1,166 +1,124 @@
-import os
-import http.server
-import socketserver
+# Import necessary modules and classes
+import logging
+import threading
+import sys
 from datetime import datetime
 
-class SimpleHTMLHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>AI Fraud Dashboard - Simplified</title>
-            <style>
-                body {{
-                    font-family: 'Helvetica Neue', Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #f5f5f5;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    background-color: #222526;
-                }}
-                .container {{
-                    background-color: #353A3E;
-                    padding: 30px;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                }}
-                h1 {{
-                    color: #e0e0e0;
-                    border-bottom: 2px solid #0071e3;
-                    padding-bottom: 10px;
-                }}
-                .card {{
-                    border: 1px solid #444;
-                    border-radius: 8px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                    background-color: #1A1A1A;
-                }}
-                .success {{
-                    color: #34c759;
-                    font-weight: bold;
-                }}
-                .warning {{
-                    color: #ff9500;
-                    font-weight: bold;
-                }}
-                .grid {{
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 20px;
-                    margin-top: 30px;
-                }}
-                .chart {{
-                    border: 1px solid #444;
-                    border-radius: 8px;
-                    height: 300px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    padding: 15px;
-                    background-color: #1A1A1A;
-                }}
-                .chart-title {{
-                    color: #e0e0e0;
-                    text-align: center;
-                    margin-bottom: 10px;
-                }}
-                .chart-bar {{
-                    background-color: #0071e3;
-                    margin-bottom: 10px;
-                    border-radius: 4px;
-                    position: relative;
-                    color: white;
-                    text-align: right;
-                    padding-right: 10px;
-                    font-weight: bold;
-                }}
-                .chart-label {{
-                    display: flex;
-                    justify-content: space-between;
-                    color: #bfbfbf;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>AI Fraud Intelligence Dashboard</h1>
-                <p>Simplified static version</p>
-                
-                <div class="card">
-                    <h2 class="success">Server Successfully Deployed!</h2>
-                    <p>This version is running on pure Python without any dependencies.</p>
-                    <p>Current time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-                    <p>Running on port: {os.environ.get("PORT", "8080")}</p>
-                </div>
-                
-                <div class="card">
-                    <h3 class="warning">Next Steps</h3>
-                    <p>We're successfully serving content, which means Railway deployment is working. From here:</p>
-                    <ol>
-                        <li>Use a simpler stack with compatible dependencies</li>
-                        <li>Consider splitting your application into smaller services</li> 
-                        <li>Implement one feature at a time to identify compatibility issues</li>
-                    </ol>
-                </div>
-                
-                <div class="grid">
-                    <div class="chart">
-                        <h3 class="chart-title">Sample AI Fraud Categories</h3>
-                        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end;">
-                            <div class="chart-bar" style="width: 70%; height: 35px;">35</div>
-                            <div class="chart-bar" style="width: 50%; height: 35px;">25</div>
-                            <div class="chart-bar" style="width: 80%; height: 35px;">40</div>
-                            <div class="chart-bar" style="width: 40%; height: 35px;">20</div>
-                            <div class="chart-bar" style="width: 60%; height: 35px;">30</div>
-                        </div>
-                        <div class="chart-label">
-                            <span>Deepfake</span>
-                            <span>Voice Clone</span>
-                            <span>AI Phishing</span>
-                            <span>Identity Theft</span>
-                            <span>Financial</span>
-                        </div>
-                    </div>
-                    
-                    <div class="chart">
-                        <h3 class="chart-title">Risk Levels</h3>
-                        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end;">
-                            <div class="chart-bar" style="width: 30%; height: 35px; background-color: #ff3b30;">15</div>
-                            <div class="chart-bar" style="width: 60%; height: 35px; background-color: #ff9500;">30</div>
-                            <div class="chart-bar" style="width: 90%; height: 35px; background-color: #ffcc00;">45</div>
-                            <div class="chart-bar" style="width: 20%; height: 35px; background-color: #34c759;">10</div>
-                        </div>
-                        <div class="chart-label">
-                            <span>Critical</span>
-                            <span>High</span>
-                            <span>Medium</span>
-                            <span>Low</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        self.wfile.write(html_content.encode('utf-8'))
+# Import from your main source code file (which I assume is named something like fds.py)
+from fds import (
+    RealTimeDataIngestionManager, 
+    seed_sample_data, 
+    HistoricalDataCollector, 
+    EnhancedAIFraudDashboard, 
+    add_novelty_detection_page
+)
 
-def run_server():
-    port = int(os.environ.get('PORT', 8080))
-    print(f"Starting server on port {port}")
-    
-    handler = SimpleHTMLHandler
-    httpd = socketserver.TCPServer(("", port), handler)
-    
-    print(f"Server running at http://0.0.0.0:{port}")
-    httpd.serve_forever()
+def main():
+    """
+    Main function to run the AI Fraud Detection System
+    """
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s: %(message)s',
+        handlers=[
+            logging.FileHandler('ai_fraud_detection.log'),
+            logging.StreamHandler()
+        ]
+    )
+    logger = logging.getLogger(__name__)
 
+    try:
+        print("Starting AI Fraud Detection System...")
+        
+        # Create data ingestion manager
+        print("Initializing data manager...")
+        data_manager = RealTimeDataIngestionManager(
+            database_path='ai_fraud_reports.db'
+        )
+        
+        # Initialize database with default data
+        print("Initializing database...")
+        data_manager.initialize_database()
+        
+        # Pre-seed database with sample data if needed
+        print("Seeding sample data...")
+        seed_sample_data(data_manager)
+        
+        # Collect historical data
+        print("Collecting historical data from January 2025...")
+        historical_collector = HistoricalDataCollector(data_manager)
+        historical_reports = historical_collector.collect_historical_data()
+        print(f"Collected {historical_reports} historical reports")
+        
+        # Create dashboard
+        print("Setting up dashboard...")
+        dashboard = EnhancedAIFraudDashboard(data_manager)
+        
+        print("Setting up novelty detection...")
+        add_novelty_detection_page(dashboard, data_manager) 
+        
+        # Connect dashboard to data manager
+        data_manager.dashboard = dashboard
+        
+        # Start data collection in a separate thread
+        print("Starting data collection thread...")
+        collection_thread = threading.Thread(
+            target=data_manager.start_periodic_collection,
+            kwargs={'collection_interval_minutes': 15, 'forecast_interval_hours': 6},
+            daemon=True
+        )
+        collection_thread.start()
+        
+        # Start dashboard in main thread
+        print("Starting dashboard at http://localhost:8050")
+        print("Press Ctrl+C to stop the server")
+        dashboard.run(debug=True, port=8050)
+        
+    except Exception as e:
+        logger.error(f"Critical error in AI Fraud Detection System: {e}")
+        import traceback
+        traceback.print_exc()
+
+# Add this block to run the script directly
 if __name__ == "__main__":
-    run_server()
+    import sys
+    
+    # Check if we're running in historical mode
+    if len(sys.argv) > 1 and sys.argv[1] == "--historical":
+        print("Running in historical data collection mode")
+        # Configure logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s: %(message)s',
+            handlers=[
+                logging.FileHandler('historical_collection.log'),
+                logging.StreamHandler()
+            ]
+        )
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Initialize data manager
+            data_manager = RealTimeDataIngestionManager(
+                database_path='ai_fraud_reports.db'
+            )
+            
+            # Initialize database
+            data_manager.initialize_database()
+            
+            # Run historical collection
+            historical_collector = HistoricalDataCollector(data_manager)
+            collected = historical_collector.collect_historical_data()
+            
+            print(f"Successfully collected {collected} historical reports")
+            sys.exit(0)
+        
+        except Exception as e:
+            logger.error(f"Error in historical collection: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+    else:
+        # Run normal main function
+        main()
