@@ -19,14 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY . .
 
 # Use a default port if not set
-ENV PORT=8000
+ENV PORT=8080
 
 # Expose the port
-EXPOSE 8000
+EXPOSE ${PORT}
 
-# Alternative CMD if gunicorn fails
-CMD if command -v gunicorn >/dev/null 2>&1; then \
-        gunicorn --bind 0.0.0.0:${PORT:-8000} main:app; \
-    else \
-        python main.py; \
-    fi
+# Run with gunicorn
+CMD gunicorn --bind 0.0.0.0:${PORT} --workers=1 --threads=2 app:app
