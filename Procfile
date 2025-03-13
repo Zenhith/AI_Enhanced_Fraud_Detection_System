@@ -1,1 +1,1 @@
-web: python debug_pip.py && gunicorn app:server
+web: chmod +x run.sh && ./run.sh
