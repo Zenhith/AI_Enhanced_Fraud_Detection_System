@@ -19,9 +19,6 @@ COPY requirements.txt /app/
 # Upgrade pip and installer tools
 RUN pip install --upgrade pip setuptools wheel
 
-# Install packages that Prophet depends on
-RUN pip install --no-cache-dir cython
-RUN pip install --no-cache-dir pystan==2.19.1.1
 
 # Install all the Python dependencies listed in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
