@@ -18,11 +18,14 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application files
 COPY . .
 
+# Make run script executable
+RUN chmod +x run.sh
+
 # Use a default port if not set
 ENV PORT=8080
 
 # Expose the port
 EXPOSE ${PORT}
 
-# Run with gunicorn
-CMD gunicorn --bind 0.0.0.0:${PORT} --workers=1 --threads=2 app:app
+# Run using the run script which has a fallback mechanism
+CMD ["./run.sh"]
