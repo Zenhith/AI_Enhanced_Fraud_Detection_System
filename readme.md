@@ -4,7 +4,6 @@
 
 The AI Fraud Intelligence Dashboard is a sophisticated monitoring and analysis platform designed to track, analyze, and detect AI-powered fraud incidents in real-time. This dashboard provides cybersecurity professionals, fraud analysts, and decision-makers with comprehensive insights into emerging fraud trends, particularly those leveraging artificial intelligence technologies.
 
-![Dashboard Screenshot](dashboard_screenshot.png)
 
 ## Key Features
 
@@ -79,7 +78,7 @@ The AI Fraud Intelligence Dashboard is designed for:
    ```
 3. Run the dashboard:
    ```
-   python run_dashboard.py
+   python main.py
    ```
 
 ### Configuration
@@ -100,7 +99,7 @@ The system can be configured through the `config.json` file:
 
 ## Technical Requirements
 
-* Python 3.8+
+* Python 3.8+ (I used 3.13 so you might have to update it)
 * SQLite (default) or other database backends
 * 4GB RAM recommended
 * Modern web browser for UI access
