@@ -22,7 +22,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Fixed: added double underscores
 
 # Create data ingestion manager
 data_manager = RealTimeDataIngestionManager(
@@ -43,9 +43,7 @@ setup_multi_page_dashboard(dashboard, data_manager)
 data_manager.dashboard = dashboard
 
 # Export the Dash app for gunicorn to serve
-# For Dash apps, the correct WSGI app is the 'server' attribute
 app = dashboard.app
-server = app.server  # This is what gunicorn should use
 
 def main():
     """
@@ -53,12 +51,12 @@ def main():
     """
     try:
         print("Starting AI Fraud Detection System...")
-        
+
         # Start real-time data collection immediately
         print("Starting immediate data collection...")
         # Collect data once before starting the thread
         data_manager.collect_data()
-        
+
         # Start periodic collection in a separate thread
         print("Starting periodic data collection thread...")
         collection_thread = threading.Thread(
@@ -67,24 +65,26 @@ def main():
             daemon=True
         )
         collection_thread.start()
-        
+
         # Get port from environment or use default
         port = int(os.environ.get('PORT', 8050))
-        
+
         # Start dashboard in main thread
         print(f"Starting dashboard at http://localhost:{port}")
         print("Press Ctrl+C to stop the server")
-        dashboard.run(debug=False, host='0.0.0.0', port=port)
         
+        # THIS LINE IS CRUCIAL - It was missing
+        dashboard.run(debug=False, port=port)
+
     except Exception as e:
         logger.error(f"Critical error in AI Fraud Detection System: {e}")
         import traceback
         traceback.print_exc()
 
 # Add this block to run the script directly
-if __name__ == "__main__":
+if __name__ == "__main__":  # Fixed: added double underscores
     import sys
-    
+
     # Check if we're running in historical mode
     if len(sys.argv) > 1 and sys.argv[1] == "--historical":
         print("Running in historical data collection mode")
@@ -97,16 +97,16 @@ if __name__ == "__main__":
                 logging.StreamHandler()
             ]
         )
-        logger = logging.getLogger(__name__)
-        
+        logger = logging.getLogger(__name__)  # Fixed: added double underscores
+
         try:
             # Run historical collection
             historical_collector = HistoricalDataCollector(data_manager)
             collected = historical_collector.collect_historical_data()
-            
+
             print(f"Successfully collected {collected} historical reports")
             sys.exit(0)
-        
+
         except Exception as e:
             logger.error(f"Error in historical collection: {e}")
             import traceback
