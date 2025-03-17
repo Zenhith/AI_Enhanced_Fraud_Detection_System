@@ -108,10 +108,4 @@ The system can be configured through the `config.json` file:
 
 For questions, issues, or feature requests, please create an issue in the repository or contact the support team.
 
-## License
 
-This software is licensed under [LICENSE NAME]. See LICENSE file for details.
-
----
-
-© 2025 Your Organization Name. All rights reserved.
