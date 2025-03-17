@@ -1382,9 +1382,9 @@ class AdvancedSourceScraper:
 				else:
 					self.logger.warning(f"HTTP error {response.status_code} from {source['name']}")
 					return []
-			except requests.RequestException:
-				# Fallback to direct parsing if requests fails
-				feed = feedparser.parse(source['url'])
+			except requests.RequestException as req_error:
+				self.logger.warning(f"Request error for {source['name']}: {req_error}")
+				return []
 			
 			# Check for feed errors
 			if hasattr(feed, 'bozo') and feed.bozo:
@@ -1397,7 +1397,7 @@ class AdvancedSourceScraper:
 			
 			# Process entries - increase to 50 for more content
 			processed_entries = []
-			for entry in feed.entries[:50]:
+			for entry in feed.entries[:500]:
 				try:
 					# Skip entries without title
 					if not entry.get('title'):
@@ -2403,24 +2403,44 @@ class RealTimeDataIngestionManager:
 	
 	def start_periodic_collection(self, collection_interval_minutes=15):
 		"""
-		Start periodic data collection and forecasting
+		Start periodic data collection - non-blocking version
+		This method will be called from a separate thread
 		
 		Args:
 			collection_interval_minutes: Minutes between collection attempts
-			forecast_interval_hours: Hours between forecast updates
 		"""
+		# Just set the flag and do initial setup
 		self.is_running = True
-	
-		collection_interval_seconds = collection_interval_minutes * 60
+		self.collection_interval_minutes = collection_interval_minutes
 		
-		# Initialize database with default data
+		# Initialize database with default data if needed
 		self.initialize_database()
 		
-		# Initial collection and forecast
+		# Initial collection 
 		self.collect_data()
-	   
 		
+		# The actual periodic collection loop is handled in the collection_loop method
+		self.collection_loop()
 
+	def collection_loop(self):
+		"""
+		The actual periodic collection loop
+		"""
+		while self.is_running:
+			try:
+				# Sleep for the interval
+				collection_interval_seconds = self.collection_interval_minutes * 60
+				time.sleep(collection_interval_seconds)
+				
+				# Collect new data
+				self.logger.info(f"Performing scheduled data collection")
+				self.collect_data()
+				
+			except Exception as e:
+				self.logger.error(f"Error in scheduled collection: {e}")
+				# Continue despite errors
+			
+			
 	def get_victim_statistics(self, timeframe_days=30):
 		"""
 		Get victim statistics for dashboard
@@ -2869,6 +2889,45 @@ class EnhancedAIFraudDashboard:
 						html.Div([
 							html.H5("Recent Fraud Incidents", style=custom_styles['card_title'])
 						], style=custom_styles['card_header']),
+						
+						# Explanation panel added here
+						html.Div([
+							html.Div([
+								html.H6("Understanding the Incident Table", 
+									style={'fontWeight': '600', 'marginBottom': '10px', 'color': ONYX_PALETTE['platinum']}),
+								html.P([
+									"This table shows recent potential AI fraud incidents detected from various sources. Key information to understand:"
+								]),
+								html.Ul([
+									html.Li([
+										html.Strong("Category: "), 
+										"POSITIVE indicates a confirmed security incident, while NEGATIVE indicates security-relevant content that may not be an actual fraud incident."
+									]),
+									html.Li([
+										html.Strong("Risk Level: "), 
+										"Calculated based on victim sensitivity, tool sophistication, incident frequency, financial impact, and trend direction."
+									]),
+									html.Li([
+										html.Strong("Victim Types: "), 
+										"Identified potential targets based on report content analysis."
+									]),
+									html.Li([
+										html.Strong("Tools Used: "), 
+										"Detected technologies or methods employed in the incident."
+									])
+								]),
+								html.P("Data is collected from cybersecurity feeds, threat intelligence sources, and specialized AI fraud monitoring channels.", 
+									style={'fontStyle': 'italic', 'marginTop': '10px'})
+							], style={
+								'backgroundColor': ONYX_PALETTE['onyx'],
+								'padding': '15px',
+								'borderRadius': '8px',
+								'marginBottom': '15px',
+								'border': f'1px solid {ONYX_PALETTE["graphite"]}',
+								'margin': '0 20px 15px 20px'  # Add some margin on sides
+							})
+						]),
+
 						html.Div([
 							dash_table.DataTable(
 								id='fraud-reports-table',
@@ -3002,8 +3061,6 @@ class EnhancedAIFraudDashboard:
 			)
 		], fluid=True, style=custom_styles['container'])
 
-
-
 	def register_callbacks(self):
 		"""
 		Register dashboard update callbacks with modified category display
@@ -3012,10 +3069,9 @@ class EnhancedAIFraudDashboard:
 			[
 				Output("stats-summary", "children"),
 				Output("trend-graph", "figure"),
-				Output("category-card-container", "children"),  # Updated to use card container
+				Output("category-card-container", "children"),
 				Output("victim-analysis-chart", "figure"),
 				Output("tools-analysis-chart", "figure"),
-				
 				Output("fraud-reports-table", "data"),
 				Output("category-filter", "options")
 			],
@@ -3029,22 +3085,12 @@ class EnhancedAIFraudDashboard:
 		def update_dashboard(time_range, category_filter, risk_level, n_intervals):
 			"""
 			Update dashboard based on selected filters
-			
-			Args:
-				time_range: Number of days to analyze or 'year' for since Jan 2025
-				category_filter: List of selected categories or None for all
-				risk_level: Selected risk level or 'all' for all levels
-				n_intervals: Auto-refresh counter
-			
-			Returns:
-				Updated visualizations and data
 			"""
-			# Get data from database based on filters
+			# Calculate effective time range
 			if time_range == 'year':
-				# Calculate days since January 1, 2025
 				start_date = datetime(2025, 1, 1)
 				days = (datetime.now() - start_date).days
-				effective_time_range = max(1, days)  # Ensure at least 1 day
+				effective_time_range = max(1, days)
 			else:
 				effective_time_range = time_range
 			
@@ -3061,7 +3107,7 @@ class EnhancedAIFraudDashboard:
 			# 2. Trend Analysis
 			trend_figure = self._create_trend_graph(effective_time_range, category_filter)
 			
-			# 3. Category Cards (replacing pie chart)
+			# 3. Category Cards
 			category_cards = self._create_category_cards(effective_time_range, category_filter, risk_level)
 			
 			# 4. Victim Analysis
@@ -3070,29 +3116,27 @@ class EnhancedAIFraudDashboard:
 			# 5. Tools Analysis
 			tools_figure = self._create_tools_analysis(effective_time_range, category_filter, risk_level)
 			
-		
-			
 			# Format table data
 			table_data = self._format_table_data(reports)
 			
 			return [
 				stats_summary,
 				trend_figure,
-				category_cards,  # Now returning HTML layout instead of figure
+				category_cards,
 				victim_figure,
 				tools_figure,
-				
 				table_data,
 				category_options
 			]
 		
+		# If you have a manual data collection button, add this callback
 		@self.app.callback(
 			Output("collection-result", "children"),
-			Input("collect-data-button", "n_clicks"),
+			[Input("collect-data-button", "n_clicks")],
 			prevent_initial_call=True
 		)
-		
 		def manual_data_collection(n_clicks):
+			"""Handle manual data collection button click"""
 			if n_clicks:
 				try:
 					print("Manual data collection triggered")
@@ -3106,6 +3150,7 @@ class EnhancedAIFraudDashboard:
 					return html.Div([
 						html.P(f"Error: {str(e)}", className="text-danger", style={"color": "#ff3b30"})
 					])
+
 
 	def _create_category_cards(self, timeframe_days, category_filter, risk_level):
 		"""
@@ -3324,7 +3369,7 @@ class EnhancedAIFraudDashboard:
 		
 	def _create_stats_summary(self, timeframe_days):
 		"""
-		Create statistics summary cards
+		Create statistics summary cards with added financial impact
 		
 		Args:
 			timeframe_days: Number of days to analyze
@@ -3344,45 +3389,25 @@ class EnhancedAIFraudDashboard:
 						html.P("Total Incidents", className="card-text text-center text-muted")
 					])
 				], color="primary", outline=True)
-			], width=3),
+			], width=4),
 			
+			# Financial Impact Card - now using width=8 (previously width=3)
 			dbc.Col([
 				dbc.Card([
 					dbc.CardBody([
 						html.H2(
-							incident_counts.get('Deepfake Fraud', 0) + 
-							incident_counts.get('Voice Cloning Scam', 0),
-							className="card-title text-center"
+							self._calculate_total_financial_impact(timeframe_days),
+							className="card-title text-center",
+							style={'fontSize': '40px', 'fontWeight': '700', 'color': '#ff3b30'}
 						),
-						html.P("Synthetic Media Frauds", className="card-text text-center text-muted")
-					])
-				], color="danger", outline=True)
-			], width=3),
-			
-			dbc.Col([
-				dbc.Card([
-					dbc.CardBody([
-						html.H2(
-							incident_counts.get('AI Phishing', 0) + 
-							incident_counts.get('Synthetic Identity Theft', 0),
-							className="card-title text-center"
-						),
-						html.P("Identity Frauds", className="card-text text-center text-muted")
-					])
-				], color="warning", outline=True)
-			], width=3),
-			
-			dbc.Col([
-				dbc.Card([
-					dbc.CardBody([
-						html.H2(
-							incident_counts.get('Financial Fraud', 0),
-							className="card-title text-center"
-						),
-						html.P("Financial Frauds", className="card-text text-center text-muted")
+						html.P("Est. Financial Loss", className="card-text text-center text-muted")
 					])
 				], color="success", outline=True)
-			], width=3)
+			], width=8)
+			
+			# Removed cards:
+			# - Synthetic Media Frauds card
+			# - Identity Frauds card
 		])
 		
 		# Add daily average card
@@ -3393,7 +3418,7 @@ class EnhancedAIFraudDashboard:
 					dbc.CardBody([
 						html.Div([
 							html.Span(f"{avg_per_day} ", style={"fontSize": "1.5rem", "fontWeight": "bold"}),
-							html.Span("incidents per day on average for the data scrapped(datascrapping on going)", style={"fontSize": "1rem"})
+							html.Span("incidents per day on average", style={"fontSize": "1rem"})
 						], className="d-flex align-items-center justify-content-center")
 					])
 				], className="mt-3")
@@ -3401,10 +3426,92 @@ class EnhancedAIFraudDashboard:
 		])
 		
 		return html.Div([stats_cards, avg_card])
+		
+	def _create_financial_impact_card(self, timeframe_days, category_filter, risk_level):
+		"""
+		Create a financial impact card showing total estimated losses
+		
+		Args:
+			timeframe_days: Number of days to analyze
+			category_filter: List of selected categories or None for all
+			risk_level: Selected risk level or 'all' for all levels
+		
+		Returns:
+			HTML Div with financial impact statistics
+		"""
+		# Calculate start date
+		start_date = datetime.now() - timedelta(days=timeframe_days)
+		
+		# Build query to get reports
+		query = self.data_manager.db_session.query(
+			FraudReport.category,
+			FraudReport.impact_score,
+			func.count(FraudReport.id).label('count')
+		).filter(
+			FraudReport.timestamp >= start_date
+		)
+		
+		# Add risk level filter if needed
+		if risk_level != 'all':
+			query = query.filter(FraudReport.risk_level == risk_level)
+		
+		# Add category filter if needed
+		if category_filter:
+			query = query.filter(FraudReport.category.in_(category_filter))
+		
+		# Group by category and execute
+		results = query.group_by(FraudReport.category).all()
+		
+		# Financial loss by category (in millions of dollars)
+		# These values would normally come from RiskProfiler.financial_loss_by_category
+		financial_loss_by_category = {
+			'Deepfake Fraud': 2.8,
+			'Voice Cloning Scam': 1.5,
+			'AI Phishing': 3.2,
+			'Synthetic Identity Theft': 4.7,
+			'Generative AI Misinformation': 1.2,
+			'Financial Fraud': 5.9,
+			'Social Media Manipulation': 0.9,
+			'Automated Impersonation': 2.3,
+			'Advanced Ransomware': 7.8
+		}
+		
+		# Calculate total financial impact
+		total_financial_impact = 0
+		for category, impact_score, count in results:
+			est_loss_per_incident = financial_loss_by_category.get(category, 2.0)  # Default $2M if unknown
+			category_impact = est_loss_per_incident * count
+			total_financial_impact += category_impact
+		
+		# Format for display
+		formatted_impact = f"${total_financial_impact:.1f}M"
+		
+		# Create HTML card (using ONYX_PALETTE from your theme)
+		ONYX_PALETTE = {
+			'onyx': '#222526',
+			'graphite': '#353A3E',
+			'platinum': '#E0E0E0',
+			'jet_black': '#1A1A1A',
+			'ash': '#BFBFBF',
+			'white': '#FFFFFF',
+			'accent_blue': '#0071e3',
+		}
+		
+		return html.Div([
+			dbc.Card([
+				dbc.CardBody([
+					html.H2(formatted_impact, className="card-title text-center", 
+						style={'fontSize': '36px', 'fontWeight': '700', 'color': '#ff3b30'}),  # Red for financial impact
+					html.P("Total Financial Impact", className="card-text text-center text-muted")
+				])
+			], color="danger", outline=True)
+		])	
+
 	
 	def _create_trend_graph(self, timeframe_days, category_filter):
 		"""
-		Create trend analysis graph
+		Create improved trend analysis graph showing meaningful insights
+		rather than just scraped data patterns
 		
 		Args:
 			timeframe_days: Number of days to analyze
@@ -3431,31 +3538,43 @@ class EnhancedAIFraudDashboard:
 			if columns:
 				pivot_df = pivot_df[columns]
 		
-		# Create figure
+		# Create figure - now focusing on showing category proportions over time
 		fig = go.Figure()
 		
-		# Color mapping for categories
-		colors = px.colors.qualitative.Plotly
+		# Calculate total incidents per time period for proportional analysis
+		pivot_df['total'] = pivot_df.sum(axis=1)
 		
-		# Add traces for each category
+		# Add stacked area chart to show proportions
 		for i, category in enumerate(pivot_df.columns):
-			color = colors[i % len(colors)]
-			fig.add_trace(go.Scatter(
-				x=pivot_df.index,
-				y=pivot_df[category],
-				mode='lines+markers',
-				name=category,
-				line=dict(color=color, width=2),
-				marker=dict(size=8),
-				hovertemplate="%{y} incidents<extra>%{x}</extra>"
-			))
+			if category != 'total':
+				# Calculate percentage of total for each category
+				pivot_df[f'{category}_pct'] = (pivot_df[category] / pivot_df['total']) * 100
+				
+				# Determine color
+				colors = px.colors.qualitative.Bold
+				color = colors[i % len(colors)]
+				
+				# Add trace for this category
+				fig.add_trace(go.Scatter(
+					x=pivot_df.index,
+					y=pivot_df[f'{category}_pct'],
+					mode='lines',
+					stackgroup='one',  # stack the areas
+					name=category,
+					line=dict(color=color, width=0.5),
+					hovertemplate="%{y:.1f}% of incidents<extra>%{x}: " + category + "</extra>"
+				))
 		
 		# Update layout
 		period_type = "Month" if monthly else "Day"
 		fig.update_layout(
-			title=f"Incident Trends by {period_type}",
+			title=f"Fraud Category Distribution Trends Over Time",
 			xaxis_title=f"Time ({period_type})",
-			yaxis_title="Incident Count",
+			yaxis_title="Percentage of Total Incidents",
+			yaxis=dict(
+				ticksuffix="%",
+				range=[0, 100]
+			),
 			legend_title="Fraud Categories",
 			hovermode="x unified",
 			legend=dict(
@@ -3468,6 +3587,7 @@ class EnhancedAIFraudDashboard:
 		)
 		
 		return fig
+
 	
 	def _create_category_pie_chart(self, timeframe_days, category_filter, risk_level):
 		"""
@@ -3806,6 +3926,46 @@ class EnhancedAIFraudDashboard:
 			port: Port to run the dashboard on
 		"""
 		self.app.run_server(debug=debug, port=port)
+	
+	def _calculate_total_financial_impact(self, timeframe_days):
+			"""
+			Calculate total financial impact for the selected timeframe
+			
+			Args:
+				timeframe_days: Number of days to analyze
+			
+			Returns:
+				Formatted string with total financial impact
+			"""
+			# Calculate start date
+			start_date = datetime.now() - timedelta(days=timeframe_days)
+			
+			# Get reports in the timeframe
+			reports = self.data_manager.db_session.query(FraudReport).filter(
+				FraudReport.timestamp >= start_date
+			).all()
+			
+			# Financial loss by category (in millions of dollars)
+			financial_loss_by_category = {
+				'Deepfake Fraud': 2.8,
+				'Voice Cloning Scam': 1.5,
+				'AI Phishing': 3.2,
+				'Synthetic Identity Theft': 4.7,
+				'Generative AI Misinformation': 1.2,
+				'Financial Fraud': 5.9,
+				'Social Media Manipulation': 0.9,
+				'Automated Impersonation': 2.3,
+				'Advanced Ransomware': 7.8
+			}
+			
+			# Calculate total impact
+			total_impact = 0
+			for report in reports:
+				est_loss = financial_loss_by_category.get(report.category, 2.0)  # Default to $2M if unknown
+				total_impact += est_loss
+			
+			return f"${total_impact:.1f}M"
+
 def setup_multi_page_dashboard(dashboard, data_manager):
 	"""
 	Setup a multi-page dashboard with URL-based routing
@@ -3871,6 +4031,7 @@ def setup_multi_page_dashboard(dashboard, data_manager):
 			return main_dashboard_layout.children  # Return the children of the main layout
 	
 	return dashboard
+
 
 def create_novelty_page_layout(data_manager):
 	"""
@@ -4076,6 +4237,8 @@ def create_novelty_page_layout(data_manager):
 			], width=12)
 		], style={'backgroundColor': ONYX_PALETTE['jet_black'], 'marginTop': '24px'})
 	], style={'backgroundColor': ONYX_PALETTE['onyx'], 'minHeight': '100vh'})
+
+
 def create_novelty_page_layout(data_manager):
 	"""
 	Create the layout for the novelty detection page
@@ -4280,6 +4443,8 @@ def create_novelty_page_layout(data_manager):
 			], width=12)
 		], style={'backgroundColor': ONYX_PALETTE['jet_black'], 'marginTop': '24px'})
 	], style={'backgroundColor': ONYX_PALETTE['onyx'], 'minHeight': '100vh'})
+
+
 
 def seed_sample_data(data_manager):
 	"""
@@ -4417,6 +4582,8 @@ def seed_sample_data(data_manager):
 	
 	# Commit all changes
 	data_manager.db_session.commit()
+ 
+ 
 
 
 
@@ -5212,7 +5379,7 @@ def add_novelty_detection_page(dashboard, data_manager):
 		
 		# Create term badges
 		term_badges = []
-		for term, count in sorted_terms[:20]:  # Limit to top 20
+		for term, count in sorted_terms[:200]:  # Limit to top 20
 			term_badges.append(
 				html.Span(f"{term} ({count})", style={
 					'display': 'inline-block',
